@@ -47,7 +47,7 @@ class Validator():
     return False
 
   def _IsAnIncrementalUpgradeItemAvaliableInAShop(self) -> bool:
-    for cave_type in [CaveType.SHOP_A, CaveType.SHOP_B, CaveType.SHOP_C]:
+    for cave_type in [CaveType.SHOP_A, CaveType.SHOP_B, CaveType.SHOP_C, CaveType.SHOP_D]:
       for position_num in [1, 2, 3]:
         location = Location(cave_type=cave_type, position_num=position_num)
         if self.data_table.GetCaveItem(location).IsAnIncrementalUpgradeItem():

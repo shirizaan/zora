@@ -243,7 +243,6 @@ class LevelGenerator:
     self.grid_generator_b.AddSixToLevelNumbers()
     self.grid_generator_b.GenerateMapData(is_7_to_9=True)
     self.grid_generator_b.Print()
-    sys.exit()
     self.level_rooms_b = self.grid_generator_b.GetLevelRoomNumbers()
     self.RandomizeOverworldCaves()
 
@@ -565,6 +564,7 @@ class LevelGenerator:
     print()
 
   def AddFinishingTouches(self, level_num: LevelNum) -> None:
+    print("Level %s" % level_num)
     start_room_num = self.level_start_rooms[level_num]
     entrance_dir = self.level_entrance_directions[level_num]
     grid_id = self._GetGridIdForLevel(level_num)
@@ -594,6 +594,7 @@ class LevelGenerator:
       return
     room = self._GetRoom(start_room_num, grid_id)
 
+    print("Going to set up level 9 triforce check(s)")
     created_check_room = False
     for direction in Range.CARDINAL_DIRECTIONS:
       if direction == entrance_dir:
@@ -616,8 +617,7 @@ class LevelGenerator:
       if (check_room.HasStairs() or check_room.GetItem() == Item.MAP or
           check_room.GetItem() == Item.COMPASS or check_room.GetEnemy() == Enemy.THE_BEAST or
           check_room.GetEnemy() == Enemy.THE_KIDNAPPED):
-        print("Hello")
-        sys.exit()
+        print("Failed one of the entry checks")
         continue
       check_room.SetEnemy(Enemy.ELDER)
       check_room.SetItem(Item.NOTHING)
@@ -629,6 +629,7 @@ class LevelGenerator:
           check_room.SetWallType(direction_2, WallType.SHUTTER_DOOR)
       created_check_room = True
     if not created_check_room:
+      sys.exit()
       raise TimeoutException()
 
   def _RecursivelyVisitRoom(self,
