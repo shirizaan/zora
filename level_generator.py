@@ -2,7 +2,8 @@ import math
 import random
 import sys
 from typing import Dict, List, Optional, Tuple
-from constants import GridId, DungeonPalette, LevelNum, Range, RoomAction, RoomNum, Screen, SpriteSet, WallType
+from constants import CaveType, GridId, DungeonPalette, LevelNum, Range
+from constants import RoomAction, RoomNum, Screen, SpriteSet, WallType
 from direction import Direction
 from data_table import DataTable
 from enemy import Enemy
@@ -104,7 +105,7 @@ class GridGenerator:
 
     original_room_num = random.choice(self.level_room_numbers[level_num])
     new_direction_pool = [
-        Direction.NORTH,
+         Direction.NORTH,
         Direction.SOUTH,
         Direction.WEST,
         Direction.EAST,
@@ -112,12 +113,14 @@ class GridGenerator:
     if self.foo:
       new_direction_pool.extend([
           #  Direction.EAST, Direction.WEST, Direction.WEST, Direction.EAST, Direction.WEST,
-          Direction.EAST
+          #Direction.EAST
+          random.choice([Direction.NORTH, Direction.SOUTH])
       ])
     else:
       new_direction_pool.extend([
-          Direction.EAST,
+          #Direction.EAST,
           #Direction.SOUTH,
+          random.choice([Direction.NORTH, Direction.SOUTH])
       ])
     new_direction = random.choice(new_direction_pool)
     new_room_num = GetNextRoomNum(original_room_num, new_direction)
@@ -126,6 +129,7 @@ class GridGenerator:
       return False
     if new_room_num % 16 == 15 and original_room_num % 16 == 0:
       return False
+    # Make sure levels aren't more than 8 rooms wide
     for a in self.level_room_numbers[level_num]:
       if abs(a % 16 - new_room_num % 16) >= 8:
         return False
@@ -214,7 +218,7 @@ class LevelGenerator:
     self.level_entrance_directions: List[Direction] = [Direction.NO_DIRECTION]
 
     self.level_positions: List[List[int]] = [[]]
-    self.level_position_dict: List[Dict[RoomType, int]] = [{}]
+    self.level_position_dict: Dict[RoomType, int] = {}
 
     self.level_rooms_a: List[List[RoomNum]] = []
     self.level_rooms_b: List[List[RoomNum]] = []
@@ -239,6 +243,7 @@ class LevelGenerator:
     self.grid_generator_b.AddSixToLevelNumbers()
     self.grid_generator_b.GenerateMapData(is_7_to_9=True)
     self.grid_generator_b.Print()
+    sys.exit()
     self.level_rooms_b = self.grid_generator_b.GetLevelRoomNumbers()
     self.RandomizeOverworldCaves()
 
@@ -248,6 +253,7 @@ class LevelGenerator:
     self.RandomizeSpriteSets()
     self.RandomizeStuff()
     self.RandomizePalettes()
+    self.data_table.RandomizeBombUpgrades()
 
     self.data_table.SetLevelGrid(GridId.GRID_A, self.room_grid_a)
     self.data_table.SetLevelGrid(GridId.GRID_B, self.room_grid_b)
@@ -282,6 +288,40 @@ class LevelGenerator:
     assert room_num in Range.VALID_ROOM_NUMBERS
     room_grid = self.room_grid_a if grid_id == GridId.GRID_A else self.room_grid_b
     return room_grid[room_num]
+
+  def RandomizeShops(self) -> None:
+    minor_items: List[Tuple[Item, int]] = []
+
+    is_done = False
+    while not is_done:
+      minor_items = [(Item.BOMBS, random.randrange(5, 20)), (Item.BOMBS, random.randrange(20, 35)),
+                     (Item.MAGICAL_SHIELD, random.randrange(90, 125)),
+                     (Item.MAGICAL_SHIELD, random.randrange(125, 160)),
+                     (Item.SINGLE_HEART, random.randrange(1, 20)),
+                     (Item.SINGLE_HEART, random.randrange(1, 20)),
+                     (Item.KEY, random.randrange(70, 90)), (Item.KEY, random.randrange(90, 110))]
+      random.shuffle(minor_items)
+      if (minor_items[0][0] != minor_items[1][0] and minor_items[2][0] != minor_items[3][0] and
+          minor_items[4][0] != minor_items[5][0] and minor_items[6][0] != minor_items[7][0]):
+        is_done = True
+    shop_item_data = [[minor_items[0][0], Item.BLUE_CANDLE, minor_items[1][0]],
+                      [minor_items[2][0], Item.WOOD_ARROWS, minor_items[3][0]],
+                      [minor_items[4][0], Item.BLUE_RING, minor_items[5][0]],
+                      [minor_items[6][0], Item.BAIT, minor_items[7][0]]]
+    shop_price_data = [[minor_items[0][1],
+                        random.randrange(50, 80), minor_items[1][1]],
+                       [minor_items[2][1],
+                        random.randrange(80, 100), minor_items[3][1]],
+                       [minor_items[4][1],
+                        random.randrange(100, 125), minor_items[5][1]],
+                       [minor_items[6][1],
+                        random.randrange(125, 150), minor_items[7][1]]]
+
+    for shop_num in range(0, 4):
+      for position_num in range(0, 3):
+        location = Location(cave_type=CaveType(0x1D + shop_num), position_num=position_num + 1)
+        self.data_table.SetCaveItem(shop_item_data[shop_num][position_num], location)
+        self.data_table.SetCavePrice(shop_price_data[shop_num][position_num], location)
 
   def RandomizeOverworldCaves(self) -> None:
     foo: List[int] = []
@@ -342,30 +382,31 @@ class LevelGenerator:
     # and accessible tile (i.e. not on top of blocks, water, etc.). They get numbered 0-3.
     # Then, create a dictionary for each level mapping each room type to the position number (0-3)
     # that is valid for the room type.
+    positions = [0x89, 0x88, 0x87, 0xCC]  #AC?
     for level_num in Range.VALID_LEVEL_NUMBERS:
-      positions = [0x89, 0x88, 0x87, 0xCC]  #AC?
-      for level_num_2 in Range.VALID_LEVEL_NUMBERS:
-        self.data_table.SetItemPositionsForLevel(level_num_2, positions)
-      level_dict: Dict[RoomType, int] = {}
-      for room_type in range(0x00, 0x2A):
-        room_type = RoomType(room_type)
-        values = [0, 1, 2, 3]
-        random.shuffle(values)
-        for v in values:
-          if room_type in [RoomType.VERTICAL_CHUTE_ROOM, RoomType.HORIZONTAL_CHUTE_ROOM]:
-            level_dict[room_type] = 0
-            break
-          elif room_type == RoomType.CIRCLE_BLOCK_WALL_ROOM:
-            level_dict[room_type] = 3
-            break
-          elif RoomType.IsValidPositionForRoomType(positions[v], room_type):
-            level_dict[room_type] = v
-            break
+      self.data_table.SetItemPositionsForLevel(level_num, positions)
+    for room_type in range(0x00, 0x2A):
+      room_type = RoomType(room_type)
+      values = [0, 1, 2, 3]
+      random.shuffle(values)
+      for v in values:
+        if room_type in [
+            RoomType.VERTICAL_CHUTE_ROOM, RoomType.HORIZONTAL_CHUTE_ROOM,
+            RoomType.HORIZONTAL_MOAT_ROOM, RoomType.DOUBLE_MOAT_ROOM
+        ]:
+          self.level_position_dict[room_type] = 0
+          break
+        elif room_type in [RoomType.CIRCLE_BLOCK_WALL_ROOM, RoomType.DIAMOND_STAIR_ROOM]:
+          self.level_position_dict[room_type] = 3
+          break
+        elif RoomType.IsValidPositionForRoomType(positions[v], room_type):
+          self.level_position_dict[room_type] = v
+          break
 
-        assert room_type in level_dict
-      level_dict[RoomType(0x3F)] = 0
-      assert level_dict[RoomType.AQUAMENTUS_ROOM] != 3
-      self.level_position_dict.append(level_dict)
+      assert room_type in self.level_position_dict
+    self.level_position_dict[RoomType(0x3F)] = 0
+    assert self.level_position_dict[RoomType.AQUAMENTUS_ROOM] != 3
+    assert self.level_position_dict[RoomType.DIAMOND_STAIR_ROOM] == 3
 
   def _PickStartRoomForLevel(self, level_num: LevelNum, entrance_direction: Direction) -> RoomNum:
     possible_start_rooms: List[RoomNum] = []
@@ -438,11 +479,13 @@ class LevelGenerator:
     elder_group_a: List[Enemy] = []
     elder_group_b: List[Enemy] = []
     for elder_group in [elder_group_a, elder_group_b]:
-      elder_group.extend([Enemy.ELDER, Enemy.ELDER_2, Enemy.ELDER_3, Enemy.ELDER_4])
-#    elder_group_a.append(Enemy.BOMB_UPGRADER)
-#    elder_group_a.append(Enemy.BOMB_UPGRADER)
-#    elder_group_b.append(Enemy.ELDER_5)
-#    elder_group_b.append(Enemy.ELDER_6)
+      elder_group.extend([Enemy.ELDER, Enemy.ELDER_2])
+    #elder_group_a.append(Enemy.ELDER_3)
+    #elder_group_a.append(Enemy.ELDER_4)
+    elder_group_a.append(Enemy.BOMB_UPGRADER)
+    elder_group_a.append(Enemy.BOMB_UPGRADER)
+    elder_group_b.append(Enemy.ELDER_3)
+    elder_group_b.append(Enemy.ELDER_4)
 
     done = False
     while not done:
@@ -456,9 +499,9 @@ class LevelGenerator:
       elder_assignments[level_pool_a[n]].append(elder_group_a.pop(0))
       elder_assignments[level_pool_b[n]].append(elder_group_b.pop(0))
 
-#      if n in [0, 1]:
-#        elder_assignments[level_pool_a[n]].append(elder_group_a.pop(0))
-#        elder_assignments[level_pool_b[n]].append(elder_group_b.pop(0))
+      #if n in [0, 1]:
+      #  elder_assignments[level_pool_a[n]].append(elder_group_a.pop(0))
+      #  elder_assignments[level_pool_b[n]].append(elder_group_b.pop(0))
     assert not elder_group_a and not elder_group_b
 
     # 3) Items
@@ -508,15 +551,85 @@ class LevelGenerator:
           self.AddEnemies(level_num, elder_assignments[level_num])
           print("----- 4) Add Items ----- ")
           self.AddItems(level_num, major_item_assignments[level_num])
+          print("----- 5) Add Finishing Touches ------")
+          self.AddFinishingTouches(level_num)
           done = True
+
         except TimeoutException:
           print("---- Received timeout exception ----")
           done = False
-#          sys.exit()
+          #sys.exit()
       print("Level #%d complete!" % level_num)
     print(self.sprite_sets)
     print(self.boss_sprite_sets)
     print()
+
+  def AddFinishingTouches(self, level_num: LevelNum) -> None:
+    start_room_num = self.level_start_rooms[level_num]
+    entrance_dir = self.level_entrance_directions[level_num]
+    grid_id = self._GetGridIdForLevel(level_num)
+    room_nums = self._GetRoomNumsForLevel(level_num)
+
+    for room_num in room_nums:
+      # Add roars around Gannon/HCs
+      room = self._GetRoom(room_num, grid_id)
+      if room.GetEnemy() == Enemy.THE_BEAST or room.GetItem() == Item.HEART_CONTAINER:
+        for direction in Range.CARDINAL_DIRECTIONS:
+          next_room_num = GetNextRoomNum(room_num, direction)
+          if next_room_num in room_nums:
+            self._GetRoom(next_room_num, grid_id).SetBossRoarSound(True)
+      # Add shutter doors around the kidnapped
+      elif room.GetEnemy() == Enemy.THE_KIDNAPPED:
+        for direction in Range.CARDINAL_DIRECTIONS:
+          if room.GetWallType(direction) == WallType.SOLID_WALL:
+            continue
+          room.SetWallType(direction, WallType.OPEN_DOOR)
+          next_room_num = GetNextRoomNum(room_num, direction)
+          if next_room_num in room_nums:
+            next_room = self._GetRoom(next_room_num, grid_id)
+            next_room.SetRoomAction(RoomAction.KILLING_THE_BEAST_OPENS_SHUTTER_DOORS)
+            next_room.SetWallType(direction.Reverse(), WallType.SHUTTER_DOOR)
+
+    if level_num != LevelNum.LEVEL_9:
+      return
+    room = self._GetRoom(start_room_num, grid_id)
+
+    created_check_room = False
+    for direction in Range.CARDINAL_DIRECTIONS:
+      if direction == entrance_dir:
+        continue
+      if room.GetWallType(direction) == WallType.SOLID_WALL:
+        continue
+      check_room_num = GetNextRoomNum(start_room_num, direction)
+      check_room = self._GetRoom(check_room_num, grid_id)
+      if (check_room.HasStairs()):
+        print("!!Stairs!!")
+      if check_room.GetItem() == Item.MAP:
+        print("!!Map!!")
+      if check_room.GetItem() == Item.COMPASS:
+        print("!!Compass!!")
+      if check_room.GetEnemy() == Enemy.THE_BEAST:
+        print("!!Beast!!")
+      if check_room.GetEnemy() == Enemy.THE_KIDNAPPED:
+        print("!!Kidnapped!!")
+
+      if (check_room.HasStairs() or check_room.GetItem() == Item.MAP or
+          check_room.GetItem() == Item.COMPASS or check_room.GetEnemy() == Enemy.THE_BEAST or
+          check_room.GetEnemy() == Enemy.THE_KIDNAPPED):
+        print("Hello")
+        sys.exit()
+        continue
+      check_room.SetEnemy(Enemy.ELDER)
+      check_room.SetItem(Item.NOTHING)
+      check_room.SetRoomType(RoomType.ELDER_ROOM)
+      check_room.SetRoomAction(RoomAction.KILLING_ENEMIES_OPENS_SHUTTER_DOORS)
+      entry_dir = direction.Reverse()
+      for direction_2 in Range.CARDINAL_DIRECTIONS:
+        if direction_2 != entry_dir and check_room.GetWallType(direction_2) != WallType.SOLID_WALL:
+          check_room.SetWallType(direction_2, WallType.SHUTTER_DOOR)
+      created_check_room = True
+    if not created_check_room:
+      raise TimeoutException()
 
   def _RecursivelyVisitRoom(self,
                             level_num: LevelNum,
@@ -675,12 +788,12 @@ class LevelGenerator:
             inner_counter += 1
             print("Fail b/c of entrance room")
             continue
-          if (room_type != RoomType.ELDER_ROOM and RoomType.ELDER_ROOM in room_type_pool and
-              not room.HasShutterDoor() and
-              room.GetWallType(Direction.NORTH) == WallType.SOLID_WALL):
-            inner_counter += 1
-            print("Fail b/c need to match elder room first")
-            continue
+          #if (room_type != RoomType.ELDER_ROOM and RoomType.ELDER_ROOM in room_type_pool and
+          #    not room.HasShutterDoor() and
+          #    room.GetWallType(Direction.NORTH) == WallType.SOLID_WALL):
+          #  inner_counter += 1
+          #  print("Fail b/c need to match elder room first")
+          #  continue
           if room_type == RoomType.ELDER_ROOM and room.HasShutterDoor():
             inner_counter += 1
             print("Fail b/c need to match elder -- shutter door")
@@ -728,6 +841,10 @@ class LevelGenerator:
           assert room_type == room_type_pool.pop(0)
           all_room_type_checks_passed = True
 
+          room.SetRoomType(room_type)
+          room.SetOuterPalette(DungeonPalette.PRIMARY)
+          room.SetInnerPalette(DungeonPalette.PRIMARY)
+
           #TODO: Condense the ITEM_STAIRCASE and TRANSPORT_STAIRCASE cases.
           if room_type == RoomType.ITEM_STAIRCASE:
             stairway_room_num = item_stairway_rooms.pop(0)
@@ -735,15 +852,17 @@ class LevelGenerator:
             stairway_room.SetRoomType(RoomType.ITEM_STAIRCASE)
             stairway_room.SetStairwayRoomExit(room_num=room_num, is_right_side=True)
             stairway_room.SetStairwayRoomExit(room_num=room_num, is_right_side=False)
-            assert self.level_position_dict[level_num][room_type] == 0
-            stairway_room.SetItemPositionCode(self.level_position_dict[level_num][room_type])
+            assert self.level_position_dict[room_type] == 0
+            stairway_room.SetItemPositionCode(self.level_position_dict[room_type])
             room.SetStairsDestination(stairway_room_num)
             room.SetInnerPalette(DungeonPalette.WATER)
+            room.SetRoomType(RoomType.DIAMOND_STAIR_ROOM)  # Temp fix
             has_solid_east_wall = room.GetWallType(Direction.EAST) == WallType.SOLID_WALL
             room_type = RoomType.RandomValueOkayForStairs(has_solid_east_wall=has_solid_east_wall,
                                                           has_shutters=room.HasShutterDoor())
+            room.SetRoomType(room_type)
             stairway_room.SetReturnPosition(
-                0x85 if room_type.NeedsOffCenterStairReturnPosition() else 0x88)
+                0x85 if room_type.NeedsOffCenterStairReturnPosition() else 0x89)
             #room.SetActionBits(pushing_block_makes_stairs_appear=True)
             self.data_table.AddStaircaseRoomNumberForLevel(level_num, stairway_room_num)
           if room_type == RoomType.TRANSPORT_STAIRCASE:
@@ -755,11 +874,13 @@ class LevelGenerator:
             stairway_room.SetRoomAction(RoomAction.NO_ROOM_ACTION)
             stairway_room.SetItem(Item.NOTHING)
             room.SetStairsDestination(stairway_room_num)
+            room.SetRoomType(RoomType.DIAMOND_STAIR_ROOM)  # Temp fix
             has_solid_east_wall = room.GetWallType(Direction.EAST) == WallType.SOLID_WALL
             room_type = RoomType.RandomValueOkayForStairs(has_solid_east_wall=has_solid_east_wall,
                                                           has_shutters=room.HasShutterDoor())
+            room.SetRoomType(room_type)
             stairway_room.SetReturnPosition(
-                0x85 if room_type.NeedsOffCenterStairReturnPosition() else 0x88)
+                0x85 if room_type.NeedsOffCenterStairReturnPosition() else 0x89)
             #room.SetActionBits(pushing_block_makes_stairs_appear=True)
             #room.SetItem(Item.NOTHING)
             room.SetInnerPalette(DungeonPalette.WATER)
@@ -767,14 +888,15 @@ class LevelGenerator:
             if ladder_side == Direction.EAST:
               self.data_table.AddStaircaseRoomNumberForLevel(level_num, stairway_room_num)
 
-          room.SetRoomType(room_type)
-          room.SetOuterPalette(DungeonPalette.PRIMARY)
-          room.SetInnerPalette(DungeonPalette.PRIMARY)
-          room.SetItemPositionCode(self.level_position_dict[level_num][room_type])
+          room.SetItemPositionCode(self.level_position_dict[room_type])
           if room_type == RoomType.ELDER_ROOM:
             room.SetInnerPalette(DungeonPalette.BLACK_AND_WHITE)
           elif room_type.HasWater() or room_type == RoomType.ENTRANCE_ROOM:
             room.SetInnerPalette(DungeonPalette.WATER)
+          elif room.HasStairs():
+            room.SetInnerPalette(DungeonPalette.WATER)
+          else:
+            room.SetInnerPalette(DungeonPalette.PRIMARY)            
           room.SetDarkRoomBit(False)
       if len(room_type_pool) == 0:
         done = True
@@ -864,6 +986,10 @@ class LevelGenerator:
             random.shuffle(enemy_pool)
             inner_counter += 1
             continue
+          if enemy in [Enemy.BLUE_LANMOLA, Enemy.RED_LANMOLA] and room_type.IsBadForLanmola():
+            random.shuffle(enemy_pool)
+            inner_counter += 1
+            continue
           if (enemy == Enemy.HUNGRY_ENEMY and
               room.GetWallType(Direction.NORTH) == WallType.SOLID_WALL):
             #print("  Fail b/c there is a solid wall over a hungry enemy")
@@ -916,7 +1042,10 @@ class LevelGenerator:
           print("Inner counter %d" % inner_counter)
           #print("Placing %s in room 0x%x" % (enemy, room_num))
           room.SetEnemy(enemy)
-          room.SetEnemyQuantityCode(random.randrange(0, 3))
+          if enemy == [Enemy.SINGLE_DODONGO, Enemy.TRIPLE_DODONGO]:
+            room.SetEnemyQuantityCode(random.randrange(0, 1))
+          else:
+            room.SetEnemyQuantityCode(random.randrange(0, 3))
           all_enemy_checks_passed = True
       if len(enemy_pool) == 0:
         done = True
@@ -939,14 +1068,15 @@ class LevelGenerator:
       minor_item_pool_template.append(Item.KEY)
     while len(minor_item_pool_template) < num_rooms:
       minor_item_pool_template.append(random.choice([Item.BOMBS, Item.FIVE_RUPEES, Item.NOTHING]))
+    random.shuffle(minor_item_pool_template)
 
-#    print(minor_item_pool_template)
-#    for room_num in self._GetRoomNumsForLevel(level_num):
-#      print("Room 0x%x" % room_num)
-#      room = self._GetRoomInLevel(room_num, level_num)
-#      print(room.GetRoomType())
-#      print(room.GetEnemy())
-#    sys.exit()
+    #    print(minor_item_pool_template)
+    #    for room_num in self._GetRoomNumsForLevel(level_num):
+    #      print("Room 0x%x" % room_num)
+    #      room = self._GetRoomInLevel(room_num, level_num)
+    #      print(room.GetRoomType())
+    #      print(room.GetEnemy())
+    #    sys.exit()
 
     counter = 0
     done = False
@@ -970,7 +1100,7 @@ class LevelGenerator:
           print("inner counter %d" % inner_counter)
           if inner_counter > 100:
             break
-          #print("room num 0x%x" % room_num)
+          print("room num 0x%x" % room_num)
           #if not entrance_matched and item == Item.NOTHING and room.GetRoomType() != RoomType.ENTRANCE_ROOM:
           #    print("  Fails b/c entrance room doesn't have its nothing yet")
           #    print(minor_item_pool)
@@ -978,12 +1108,11 @@ class LevelGenerator:
           #    inner_counter += 1
           #    continue
 
-
-#        if room.GetEnemy().IsBoss() and item != Item.HEART_CONTAINER:
-#            print("  Fails b/c boss doesn't have an HC yet")
-#            print("                                                 Level is %d" % level_num)
-#            inner_counter += 1
-#            continue
+          #        if room.GetEnemy().IsBoss() and item != Item.HEART_CONTAINER:
+          #            print("  Fails b/c boss doesn't have an HC yet")
+          #            print("                                                 Level is %d" % level_num)
+          #            inner_counter += 1
+          #            continue
           if item != Item.NOTHING:
             if room.GetEnemy().IsElderOrHungryEnemy():
               print("  Fails b/c of an item with an Elder or Hungry goriya")
@@ -999,8 +1128,6 @@ class LevelGenerator:
             inner_counter += 1
             continue
           assert item == minor_item_pool.pop(0)
-          room.SetOuterPalette(DungeonPalette.PRIMARY)
-          room.SetInnerPalette(DungeonPalette.PRIMARY)
           all_item_checks_passed = True
           room.SetItem(item)
           if room.GetRoomType() == RoomType.ENTRANCE_ROOM:
@@ -1013,9 +1140,6 @@ class LevelGenerator:
               staircase_room.SetItem(major_item_pool.pop(0))
             else:
               staircase_room.SetItem(Item.NOTHING)
-          if item == Item.HEART_CONTAINER:
-            room.SetBossRoarSound()
-            room.SetInnerPalette(DungeonPalette.ACCENT_COLOR)
           if room.HasStairs() and room.GetRoomType() == RoomType.DIAMOND_STAIR_ROOM:
             if item != Item.NOTHING and random.choice([True, False]):
               room.SetRoomAction(
@@ -1050,7 +1174,6 @@ class LevelGenerator:
             #print(room_num)
             assert not room.IsItemStaircase()
             self.data_table.UpdateCompassPointer(Location(level_num=level_num, room_num=room_num))
-            room.SetInnerPalette(DungeonPalette.ACCENT_COLOR)
 
           if room.GetEnemy() == Enemy.THE_BEAST:
             room.SetItem(Item.NOTHING)
@@ -1060,7 +1183,7 @@ class LevelGenerator:
               ]:
                 room.SetWallType(direction, WallType.SHUTTER_DOOR)
             room.SetOuterPalette(DungeonPalette.PRIMARY)
-            room.SetInnerPalette(DungeonPalette.BLACK_AND_WHITE)
+            room.SetInnerPalette(DungeonPalette.PRIMARY)
             room.SetEnemyQuantityCode(0)
             room.SetDarkRoomBit(True)
             room.SetRoomAction(RoomAction.KILLING_THE_BEAST_OPENS_SHUTTER_DOORS)

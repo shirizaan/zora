@@ -127,11 +127,11 @@ class ItemRandomizer():
   def WriteItemsAndLocationsToTable(self) -> None:
     for (location, item_num) in self.item_shuffler.GetAllLocationAndItemData():
       if location.IsLevelRoom():
-        self.data_table.SetRoomItem(location, item_num)
+        self.data_table.SetRoomItem(item_num, location)
         #if item_num == Item.TRIFORCE:
         #  self.data_table.UpdateTriforceLocation(location)
       elif location.IsCavePosition():
-        self.data_table.SetCaveItem(location, item_num)
+        self.data_table.SetCaveItem(item_num, location)
 
 
 class ItemShuffler():

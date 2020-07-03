@@ -21,6 +21,8 @@ class DataTable():
   ARMOS_ITEM_ADDRESS = 0x10CF5 + NES_FILE_OFFSET
   COAST_ITEM_ADDRESS = 0x1788A + NES_FILE_OFFSET
   CAVE_TYPE_CAVE_NUM_OFFSET = 0x10
+  BOMB_UPGRADE_PRICE_ADDRESS = 0x4B72 + NES_FILE_OFFSET
+  BOMB_UPGRADE_QUANTITY_ADDRESS = 0x4B8A + NES_FILE_OFFSET
 
   LEVEL_METADATA_ADDRESS = 0x19300 + NES_FILE_OFFSET
   LEVEL_METADATA_OFFSET = 0xFC
@@ -64,6 +66,7 @@ class DataTable():
     self.level_1_to_6_rooms: List[Room] = []
     self.level_7_to_9_rooms: List[Room] = []
     self.sprite_set_patch = Patch()
+    self.misc_data_patch = Patch()
 
   def GetCaveDestination(self, screen_num: int) -> int:
     print("Reading byte %x " % (screen_num))
@@ -153,7 +156,7 @@ class DataTable():
       return self.level_7_to_9_rooms[location.GetRoomNum()].GetItem()
     return self.level_1_to_6_rooms[location.GetRoomNum()].GetItem()
 
-  def SetRoomItem(self, location: Location, item: Item) -> None:
+  def SetRoomItem(self, item: Item, location: Location) -> None:
     assert location.IsLevelRoom()
     if location.GetLevelNum() in [7, 8, 9]:
       self.level_7_to_9_rooms[location.GetRoomNum()].SetItem(item)
@@ -164,9 +167,23 @@ class DataTable():
     assert location.IsCavePosition()
     return self.overworld_caves[location.GetCaveNum()].GetItemAtPosition(location.GetPositionNum())
 
-  def SetCaveItem(self, location: Location, item: Item) -> None:
+  def SetCaveItem(self, item: Item, location: Location) -> None:
     assert location.IsCavePosition()
     self.overworld_caves[location.GetCaveNum()].SetItemAtPosition(item, location.GetPositionNum())
+
+  def SetCavePrice(self, price: int, location: Location) -> None:
+    assert location.IsCavePosition()
+    self.overworld_caves[location.GetCaveNum()].SetPriceAtPosition(price, location.GetPositionNum())
+
+  def RandomizeBombUpgrades(self) -> None:
+    done = False
+    while not done:
+      price = random.randrange(75, 125)
+      quantity = random.randrange(2, 6)
+      if price not in range(110, 126) or quantity not in [2, 3]:
+        done = True
+    self.misc_data_patch.AddData(self.BOMB_UPGRADE_PRICE_ADDRESS, [price])
+    self.misc_data_patch.AddData(self.BOMB_UPGRADE_QUANTITY_ADDRESS, [quantity])
 
   def ClearAllVisitMarkers(self) -> None:
     logging.debug("Clearing Visit markers")

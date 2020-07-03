@@ -99,17 +99,17 @@ class RoomType(IntEnum):
   def CanHaveStairs(self) -> bool:
     return self in [
         RoomType.CIRCLE_BLOCK_WALL_ROOM, RoomType.DIAMOND_STAIR_ROOM, RoomType.DOUBLE_BLOCK,
-        RoomType.FIVE_PAIR_ROOM, RoomType.GRID_ROOM, RoomType.HORIZONTAL_LINES, RoomType.MAZE_ROOM,
-        RoomType.NARROW_STAIR_ROOM, RoomType.REVERSE_C, RoomType.SINGLE_BLOCK_ROOM,
-        RoomType.SPIKE_TRAP_ROOM, RoomType.SPIRAL_STAIR_ROOM, RoomType.VERTICAL_LINES,
-        RoomType.ZIGZAG_ROOM ,RoomType.GOHMA_ROOM
+        RoomType.FIVE_PAIR_ROOM, RoomType.GOHMA_ROOM, RoomType.GRID_ROOM, RoomType.HORIZONTAL_LINES,
+        RoomType.MAZE_ROOM, RoomType.NARROW_STAIR_ROOM, RoomType.REVERSE_C,
+        RoomType.SINGLE_BLOCK_ROOM, RoomType.SPIKE_TRAP_ROOM, RoomType.SPIRAL_STAIR_ROOM,
+        RoomType.VERTICAL_LINES, RoomType.ZIGZAG_ROOM
     ]
 
   def NeedsOffCenterStairReturnPosition(self) -> bool:
     return self in [
-        RoomType.HORIZONTAL_LINES, RoomType.VERTICAL_LINES, RoomType.DIAMOND_STAIR_ROOM,
-        RoomType.FIVE_PAIR_ROOM, RoomType.SINGLE_BLOCK_ROOM, RoomType.CIRCLE_BLOCK_WALL_ROOM,
-        RoomType.SPIRAL_STAIR_ROOM
+        RoomType.CIRCLE_BLOCK_WALL_ROOM, RoomType.DIAMOND_STAIR_ROOM, RoomType.FIVE_PAIR_ROOM,
+        RoomType.HORIZONTAL_LINES, RoomType.SINGLE_BLOCK_ROOM, RoomType.SPIRAL_STAIR_ROOM,
+        RoomType.VERTICAL_LINES
     ]
 
   def IsBadForBosses(self) -> bool:
@@ -118,9 +118,9 @@ class RoomType(IntEnum):
         RoomType.SECOND_QUEST_T_LIKE_ROOM, RoomType.MAZE_ROOM, RoomType.GRID_ROOM,
         RoomType.VERTICAL_CHUTE_ROOM, RoomType.HORIZONTAL_CHUTE_ROOM, RoomType.VERTICAL_LINES,
         RoomType.ZIGZAG_ROOM, RoomType.T_ROOM, RoomType.CHEVY_ROOM, RoomType.NSU,
-        RoomType.SPIRAL_STAIR_ROOM,RoomType.SINGLE_SIX_BLOCK_ROOM, RoomType.DOUBLE_SIX_BLOCK_ROOM, RoomType.TURNSTILE_ROOM,
-        RoomType.ENTRANCE_ROOM, RoomType.ZELDA_ROOM, RoomType.TRIFORCE_ROOM,
-        RoomType.DIAMOND_STAIR_ROOM
+        RoomType.SPIRAL_STAIR_ROOM, RoomType.SINGLE_SIX_BLOCK_ROOM, RoomType.DOUBLE_SIX_BLOCK_ROOM,
+        RoomType.TURNSTILE_ROOM, RoomType.ENTRANCE_ROOM, RoomType.ZELDA_ROOM,
+        RoomType.TRIFORCE_ROOM, RoomType.DIAMOND_STAIR_ROOM
     ]
 
   def IsBadForTraps(self) -> bool:
@@ -140,6 +140,17 @@ class RoomType(IntEnum):
         RoomType.SPIRAL_STAIR_ROOM, RoomType.ZELDA_ROOM, RoomType.TRIFORCE_ROOM
     ]
 
+  def IsBadForLanmola(self) -> bool:
+    return self.value in [
+        RoomType.CIRCLE_BLOCK_WALL_ROOM, RoomType.DOUBLE_MOAT_ROOM, RoomType.SPIKE_TRAP_ROOM,
+        RoomType.REVERSE_C, RoomType.AQUAMENTUS_ROOM, RoomType.DIAMOND_STAIR_ROOM,
+        RoomType.VERTICAL_CHUTE_ROOM, RoomType.HORIZONTAL_CHUTE_ROOM, RoomType.HORIZONTAL_LINES,
+        RoomType.NARROW_STAIR_ROOM, RoomType.SPIRAL_STAIR_ROOM, RoomType.T_ROOM,
+        RoomType.VERTICAL_LINES, RoomType.MAZE_ROOM, RoomType.GRID_ROOM,
+        RoomType.SECOND_QUEST_T_LIKE_ROOM, RoomType.TRIFORCE_ROOM, RoomType.TURNSTILE_ROOM,
+        RoomType.ENTRANCE_ROOM, RoomType.CHEVY_ROOM, RoomType.NSU, RoomType.POINTLESS_MOAT_ROOM
+    ]
+
   def IsPartitionedByBlockWalls(self) -> bool:
     return self.value in [
         RoomType.CIRCLE_BLOCK_WALL_ROOM, RoomType.VERTICAL_CHUTE_ROOM,
@@ -147,9 +158,7 @@ class RoomType(IntEnum):
     ]
 
   def HasBeamoses(self) -> bool:
-    return self.value in [
-        RoomType.TWO_BEAMOS_ROOM, RoomType.FOUR_BEAMOS_ROOM, RoomType.GOHMA_ROOM
-    ]
+    return self.value in [RoomType.TWO_BEAMOS_ROOM, RoomType.FOUR_BEAMOS_ROOM, RoomType.GOHMA_ROOM]
 
   def ShouldntBeDarkRoom(self) -> bool:
     return self.value in [RoomType.ENTRANCE_ROOM, RoomType.ELDER_ROOM]

@@ -182,8 +182,7 @@ class Room():
     return Item(self._ReadRomBits(byte_num=4, read_bitmask=0x1F))
 
   def HasItem(self) -> bool:
-    return not self.GetItem(
-    ) == Item.NOTHING  # and (self.HasStaircase() or not self.HasDropBitSet()):
+    return not self.GetItem() == Item.NOTHING
 
   def SetDarkRoomBit(self, is_dark_room: bool) -> None:
     self._SetRomBits(4, 0x80, 1 if is_dark_room else 0)
@@ -198,7 +197,7 @@ class Room():
     return self._ReadRomBits(byte_num=5, read_bitmask=0x07) == 0x07
 
   def SetBossRoarSound(self, roar_sound: bool = True) -> None:
-    self._SetRomBits(5, 0x20, 0x01)
+    self._SetRomBits(4, 0x2, 0x01)
 
   # TODO: This could be re-implemented using math on room_action's value more easily
   def SetRoomAction(self, room_action: RoomAction) -> None:
